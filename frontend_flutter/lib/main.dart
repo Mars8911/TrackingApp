@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'views/home_view.dart'; // 引入你的導航大門
+import 'views/login_view.dart';
 
 void main() {
   runApp(const MyApp());
@@ -19,7 +19,7 @@ class MyApp extends StatelessWidget {
         textTheme: GoogleFonts.notoSansTcTextTheme(),
         brightness: Brightness.dark, // 因為圖片是深色的，我們用暗色模式
       ),
-      home: const HomeView(),
+      home: const LoginView(),
     );
   }
 }
