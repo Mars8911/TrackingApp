@@ -22,6 +22,15 @@ class SaasSeeder extends Seeder
         // 2. A店家
         $store = \App\Models\Store::create(['name' => 'A店家', 'branch_name' => '旗艦店']);
 
+        // 2b. 店家管理者 (歸屬 A 店家)
+        \App\Models\User::create([
+            'name' => '王店長',
+            'email' => 'store@trackme.com',
+            'password' => bcrypt('password'),
+            'role' => 'store_manager',
+            'store_id' => $store->id,
+        ]);
+
         // 3. 李大明 (歸屬 A 店家)
         $user = \App\Models\User::create([
             'name' => '李大明',

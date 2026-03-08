@@ -1,0 +1,6 @@
+/* Admin 後台樣式 - Bootstrap 5 */
+@import 'bootstrap/dist/css/bootstrap.min.css';
+
+body {
+  font-family: 'Noto Sans TC', -apple-system, BlinkMacSystemFont, sans-serif;
+}

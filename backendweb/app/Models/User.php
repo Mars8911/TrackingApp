@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Laravel\Sanctum\HasApiTokens; // 必須有這行
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -10,7 +11,7 @@ use Illuminate\Notifications\Notifiable;
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable;
+    use HasFactory, Notifiable, HasApiTokens;
 
     /**
      * The attributes that are mass assignable.
@@ -46,5 +47,29 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    /** 關聯：使用者所屬店家 */
+    public function store()
+    {
+        return $this->belongsTo(Store::class);
+    }
+
+    /** 是否為超級管理者 */
+    public function isSuperAdmin(): bool
+    {
+        return $this->role === 'super_admin';
+    }
+
+    /** 是否為店家管理者 */
+    public function isStoreManager(): bool
+    {
+        return $this->role === 'store_manager';
+    }
+
+    /** 是否為管理員（超級或店家） */
+    public function isAdmin(): bool
+    {
+        return in_array($this->role, ['super_admin', 'store_manager']);
     }
 }
