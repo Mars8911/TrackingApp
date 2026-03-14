@@ -16,6 +16,30 @@ export default [
     meta: { requiresAuth: true },
   },
   {
+    path: '/members',
+    name: 'Members',
+    component: () => import('../views/MembersList.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/members/:id',
+    name: 'MemberDetail',
+    component: () => import('../views/MemberDetail.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/members/:id/location',
+    name: 'MemberLocation',
+    component: () => import('../views/MemberLocation.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/push-notifications',
+    name: 'PushNotifications',
+    component: () => import('../views/PushNotification.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/:pathMatch(.*)*',
     redirect: '/dashboard',
   },

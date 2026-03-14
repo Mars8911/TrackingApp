@@ -6,6 +6,12 @@
         <li class="nav-item">
           <router-link to="/dashboard" class="nav-link" active-class="active">儀表板</router-link>
         </li>
+        <li class="nav-item">
+          <router-link to="/members" class="nav-link" active-class="active">會員資訊</router-link>
+        </li>
+        <li class="nav-item">
+          <router-link to="/push-notifications" class="nav-link" active-class="active">訊息推播管理</router-link>
+        </li>
       </ul>
     </nav>
 

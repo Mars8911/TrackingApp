@@ -22,8 +22,15 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
-        'role',     // 新增
-        'store_id', // 新增
+        'role',
+        'store_id',
+        'member_level',   // 一般/優質/VIP
+        'points',
+        'id_number',
+        'phone',
+        'address',
+        'emergency_contact',
+        'emergency_phone',
     ];
 
     /**
@@ -53,6 +60,12 @@ class User extends Authenticatable
     public function store()
     {
         return $this->belongsTo(Store::class);
+    }
+
+    /** 關聯：會員的貸款案件 */
+    public function loans()
+    {
+        return $this->hasMany(Loan::class);
     }
 
     /** 是否為超級管理者 */
