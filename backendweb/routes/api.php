@@ -18,6 +18,8 @@ Route::get('/', function () {
             'GET /api/stores' => '店家列表（註冊用）',
             'POST /api/register' => '會員註冊',
             'POST /api/login' => '會員登入',
+            'GET /api/user' => '會員個人資料（需 Bearer Token）',
+            'POST /api/change-password' => '更改密碼（需 Bearer Token）',
             'GET /api/notifications' => '推播通知列表（需 Bearer Token）',
         ],
     ]);
@@ -30,8 +32,10 @@ Route::get('/stores', [StoreController::class, 'index']);
 Route::post('/register', [RegisterController::class, 'register']);
 Route::post('/login', [ApiAuthController::class, 'login']);
 
-// 會員推播通知 API（需 Bearer Token 認證）
+// 會員 API（需 Bearer Token 認證）
 Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/user', [ApiAuthController::class, 'profile']);
+    Route::post('/change-password', [ApiAuthController::class, 'changePassword']);
     Route::get('/notifications', [NotificationController::class, 'index']);
     Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
 });

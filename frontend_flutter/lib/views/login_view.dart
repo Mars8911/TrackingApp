@@ -73,6 +73,9 @@ class _LoginViewState extends State<LoginView> {
             userId: user['id'] as int,
             name: user['name'] as String,
             email: user['email'] as String,
+            phone: user['phone'] as String?,
+            idNumber: user['id_number'] as String?,
+            store: user['store'] is String ? user['store'] as String : null,
           );
         }
         Navigator.pushReplacement(

@@ -152,6 +152,65 @@ class ApiService {
     }
   }
 
+  /// 取得會員個人資料（需 Bearer Token）
+  Future<Map<String, dynamic>?> fetchProfile(String token) async {
+    try {
+      final response = await _dio.get(
+        '$baseUrl/user',
+        options: Options(
+          headers: {'Authorization': 'Bearer $token'},
+        ),
+      );
+      if (response.statusCode == 200) {
+        final user = response.data['user'] as Map<String, dynamic>?;
+        return user != null ? Map<String, dynamic>.from(user) : null;
+      }
+      return null;
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 401) return null;
+      print('API 取得個人資料失敗: $e');
+      return null;
+    } catch (e) {
+      print('API 取得個人資料失敗: $e');
+      return null;
+    }
+  }
+
+  /// 更改密碼（需 Bearer Token）
+  Future<void> changePassword({
+    required String token,
+    required String currentPassword,
+    required String newPassword,
+    required String newPasswordConfirmation,
+  }) async {
+    try {
+      final response = await _dio.post(
+        '$baseUrl/change-password',
+        data: {
+          'current_password': currentPassword,
+          'password': newPassword,
+          'password_confirmation': newPasswordConfirmation,
+        },
+        options: Options(
+          headers: {'Authorization': 'Bearer $token'},
+        ),
+      );
+      if (response.statusCode != 200) {
+        final msg = response.data['message'] as String? ?? '密碼更新失敗';
+        throw Exception(msg);
+      }
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 422) {
+        final msg = e.response?.data['message'] as String? ?? '驗證失敗';
+        throw Exception(msg);
+      }
+      if (e.response?.data != null && e.response?.data['message'] != null) {
+        throw Exception(e.response!.data['message'] as String);
+      }
+      throw Exception('密碼更新失敗，請稍後再試');
+    }
+  }
+
   /// 取得推播通知列表（需 Bearer Token）
   Future<List<Map<String, dynamic>>> fetchNotifications(String token) async {
     try {
