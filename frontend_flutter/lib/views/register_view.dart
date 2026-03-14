@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'home_view.dart';
+import '../services/api_service.dart';
 
 class RegisterView extends StatefulWidget {
   const RegisterView({super.key});
@@ -24,15 +25,22 @@ class _RegisterViewState extends State<RegisterView> {
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
 
-  // 步驟二：店家選擇
-  String? _selectedStoreId;
+  // 步驟二：店家選擇（從 API 取得）
+  int? _selectedStoreId;
+  List<StoreItem> _stores = [];
+  bool _storesLoading = true;
+  String? _storesError;
+  bool _isRegistering = false;
+  String? _registerError;
 
-  static const List<Map<String, dynamic>> _stores = [
-    {'id': 'A', 'name': 'A店家', 'description': '總部旗艦店', 'location': '台北市信義區', 'color': Color(0xFF3B82F6)},
-    {'id': 'B', 'name': 'B店家', 'description': '大安分店', 'location': '台北市大安區', 'color': Color(0xFF06B6D4)},
-    {'id': 'C', 'name': 'C店家', 'description': '板橋分店', 'location': '新北市板橋區', 'color': Color(0xFF14B8A6)},
-    {'id': 'D', 'name': 'D店家', 'description': '台中分店', 'location': '台中市西屯區', 'color': Color(0xFF0EA5E9)},
+  static const List<Color> _storeColors = [
+    Color(0xFF3B82F6),
+    Color(0xFF06B6D4),
+    Color(0xFF14B8A6),
+    Color(0xFF0EA5E9),
   ];
+
+  final ApiService _api = ApiService();
 
   @override
   void dispose() {
@@ -46,16 +54,119 @@ class _RegisterViewState extends State<RegisterView> {
     super.dispose();
   }
 
-  void _handleRegisterStep1() {
-    setState(() => _currentStep = 2);
+  Future<void> _loadStores() async {
+    setState(() {
+      _storesLoading = true;
+      _storesError = null;
+    });
+    try {
+      final stores = await _api.fetchStores();
+      if (mounted) {
+        setState(() {
+          _stores = stores;
+          _storesLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        final msg = e.toString().replaceFirst('Exception: ', '');
+        setState(() {
+          _storesError = msg.contains('DioException') || msg.contains('status code')
+              ? '無法載入店家列表，請確認後端已啟動'
+              : (msg.isNotEmpty ? msg : '無法載入店家列表，請稍後再試');
+          _storesLoading = false;
+        });
+      }
+    }
   }
 
-  void _handleCompleteSetup() {
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (context) => const HomeView()),
-      (route) => false,
+  void _handleRegisterStep1() {
+    // 驗證表單
+    final name = _nameController.text.trim();
+    final email = _emailController.text.trim();
+    final phone = _phoneController.text.trim();
+    final idNumber = _idNumberController.text.trim();
+    final password = _passwordController.text;
+    final confirmPassword = _confirmPasswordController.text;
+
+    if (name.isEmpty) {
+      _showSnackBar('請輸入姓名');
+      return;
+    }
+    if (email.isEmpty) {
+      _showSnackBar('請輸入電子郵箱');
+      return;
+    }
+    if (phone.isEmpty) {
+      _showSnackBar('請輸入電話號碼');
+      return;
+    }
+    if (idNumber.isEmpty) {
+      _showSnackBar('請輸入身分證字號');
+      return;
+    }
+    if (password.length < 8 || password != confirmPassword) {
+      _showSnackBar('密碼格式錯誤未完整');
+      return;
+    }
+    if (!_agreeTerms) {
+      _showSnackBar('請同意服務條款與隱私政策');
+      return;
+    }
+
+    setState(() {
+      _currentStep = 2;
+      _selectedStoreId = null;
+      _registerError = null;
+    });
+    _loadStores();
+  }
+
+  void _showSnackBar(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg, style: const TextStyle(color: Colors.white)),
+        backgroundColor: Colors.red.shade700,
+      ),
     );
+  }
+
+  Future<void> _handleCompleteSetup() async {
+    if (_selectedStoreId == null) return;
+
+    setState(() {
+      _isRegistering = true;
+      _registerError = null;
+    });
+
+    try {
+      await _api.register(
+        name: _nameController.text.trim(),
+        email: _emailController.text.trim(),
+        phone: _phoneController.text.trim(),
+        idNumber: _idNumberController.text.trim(),
+        password: _passwordController.text,
+        passwordConfirmation: _confirmPasswordController.text,
+        storeId: _selectedStoreId!,
+        promoCode: _promoCodeController.text.trim().isEmpty ? null : _promoCodeController.text.trim(),
+      );
+
+      if (mounted) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const HomeView()),
+          (route) => false,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isRegistering = false;
+          _registerError = e.toString().replaceFirst('Exception: ', '');
+        });
+        _showSnackBar(_registerError ?? '註冊失敗');
+      }
+    }
   }
 
   @override
@@ -313,19 +424,51 @@ class _RegisterViewState extends State<RegisterView> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              ...List.generate(_stores.length, (index) {
-                final store = _stores[index];
-                final isSelected = _selectedStoreId == store['id'];
-                return Padding(
-                  padding: EdgeInsets.only(bottom: index < _stores.length - 1 ? 12 : 0),
-                  child: _buildStoreCard(store: store, isSelected: isSelected),
-                );
-              }),
+              if (_storesLoading)
+                const Padding(
+                  padding: EdgeInsets.all(32),
+                  child: Center(child: CircularProgressIndicator(color: Color(0xFF22D3EE))),
+                )
+              else if (_storesError != null)
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      Text(
+                        _storesError!,
+                        style: TextStyle(color: Colors.red.shade300, fontSize: 14),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 16),
+                      GestureDetector(
+                        onTap: _loadStores,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF22D3EE).withOpacity(0.3),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFF22D3EE)),
+                          ),
+                          child: const Text('重試', style: TextStyle(color: Color(0xFF22D3EE), fontWeight: FontWeight.w600)),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                ...List.generate(_stores.length, (index) {
+                  final store = _stores[index];
+                  final isSelected = _selectedStoreId == store.id;
+                  return Padding(
+                    padding: EdgeInsets.only(bottom: index < _stores.length - 1 ? 12 : 0),
+                    child: _buildStoreCard(store: store, isSelected: isSelected),
+                  );
+                }),
               const SizedBox(height: 24),
 
               // 完成設定 / 請選擇店家 按鈕
               GestureDetector(
-                onTap: _selectedStoreId != null ? _handleCompleteSetup : null,
+                onTap: (_selectedStoreId != null && !_isRegistering) ? _handleCompleteSetup : null,
                 child: Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 14),
@@ -353,17 +496,25 @@ class _RegisterViewState extends State<RegisterView> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(
-                        _selectedStoreId != null ? '完成設定' : '請選擇店家',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: _selectedStoreId != null ? Colors.white : Colors.blue.shade300,
+                      if (_isRegistering)
+                        const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      else ...[
+                        Text(
+                          _selectedStoreId != null ? '完成設定' : '請選擇店家',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: _selectedStoreId != null ? Colors.white : Colors.blue.shade300,
+                          ),
                         ),
-                      ),
-                      if (_selectedStoreId != null) ...[
-                        const SizedBox(width: 8),
-                        const Icon(Icons.arrow_forward, size: 20, color: Colors.white),
+                        if (_selectedStoreId != null) ...[
+                          const SizedBox(width: 8),
+                          const Icon(Icons.arrow_forward, size: 20, color: Colors.white),
+                        ],
                       ],
                     ],
                   ),
@@ -376,7 +527,7 @@ class _RegisterViewState extends State<RegisterView> {
                   style: TextStyle(fontSize: 12, color: Colors.blue.shade300),
                 ),
               ),
-              if (_selectedStoreId != null) ...[
+              if (_selectedStoreId != null && _stores.isNotEmpty) ...[
                 const SizedBox(height: 16),
                 Center(
                   child: Row(
@@ -385,7 +536,7 @@ class _RegisterViewState extends State<RegisterView> {
                       Icon(Icons.check_circle, size: 16, color: Colors.green.shade400),
                       const SizedBox(width: 6),
                       Text(
-                        '已選擇 ${_stores.firstWhere((s) => s['id'] == _selectedStoreId)['name']}',
+                        '已選擇 ${_stores.firstWhere((s) => s.id == _selectedStoreId).name}',
                         style: TextStyle(fontSize: 14, color: const Color(0xFF22D3EE)),
                       ),
                     ],
@@ -399,9 +550,10 @@ class _RegisterViewState extends State<RegisterView> {
     );
   }
 
-  Widget _buildStoreCard({required Map<String, dynamic> store, required bool isSelected}) {
+  Widget _buildStoreCard({required StoreItem store, required bool isSelected}) {
+    final colorIndex = store.id % _storeColors.length;
     return GestureDetector(
-      onTap: () => setState(() => _selectedStoreId = store['id'] as String),
+      onTap: () => setState(() => _selectedStoreId = store.id),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.all(16),
@@ -419,7 +571,7 @@ class _RegisterViewState extends State<RegisterView> {
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color: (store['color'] as Color).withOpacity(0.8),
+                color: _storeColors[colorIndex].withOpacity(0.8),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: const Icon(Icons.store_outlined, color: Colors.white, size: 24),
@@ -432,7 +584,7 @@ class _RegisterViewState extends State<RegisterView> {
                   Row(
                     children: [
                       Text(
-                        store['name'] as String,
+                        store.name,
                         style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white),
                       ),
                       const SizedBox(width: 8),
@@ -444,7 +596,7 @@ class _RegisterViewState extends State<RegisterView> {
                           border: Border.all(color: Colors.blue.withOpacity(0.3)),
                         ),
                         child: Text(
-                          store['id'] as String,
+                          store.name.length > 0 ? store.name[0] : '',
                           style: TextStyle(fontSize: 11, color: Colors.blue.shade300),
                         ),
                       ),
@@ -452,19 +604,8 @@ class _RegisterViewState extends State<RegisterView> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    store['description'] as String,
+                    store.branchName,
                     style: TextStyle(fontSize: 12, color: Colors.blue.shade200),
-                  ),
-                  const SizedBox(height: 2),
-                  Row(
-                    children: [
-                      Icon(Icons.location_on_outlined, size: 12, color: Colors.blue.shade300),
-                      const SizedBox(width: 4),
-                      Text(
-                        store['location'] as String,
-                        style: TextStyle(fontSize: 12, color: Colors.blue.shade300),
-                      ),
-                    ],
                   ),
                 ],
               ),

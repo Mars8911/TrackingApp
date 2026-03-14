@@ -27,13 +27,18 @@ class DashboardView extends StatefulWidget {
 class _DashboardViewState extends State<DashboardView> {
   MessageType _selectedMessageType = MessageType.dongBao;
 
+  /// 無貸款時顯示 0，有 API 資料時顯示實際值
   double get _repaymentTotal =>
-      widget.summary?.totalLoanAmount ?? 1384567;
+      widget.summary?.totalLoanAmount ?? 0;
   double get _repaidAmount =>
       widget.summary != null
           ? (widget.summary!.totalLoanAmount - widget.summary!.totalRemaining)
-          : 1;
-  double get _monthlyPayment => 101092; // API 若無此欄位可後續擴充
+          : 0;
+  /// 月還款：有 API 時從 loans 加總，無則為 0
+  double get _monthlyPayment => widget.summary?.loans.fold<double>(
+        0,
+        (s, l) => s + (l.monthlyPayment ?? 0),
+      ) ?? 0;
 
   double get _repaymentProgress =>
       _repaymentTotal > 0 ? (_repaidAmount / _repaymentTotal) * 100 : 0;

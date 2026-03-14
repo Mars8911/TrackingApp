@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'home_view.dart';
 import 'register_view.dart';
 import 'forgot_password_view.dart';
+import '../services/api_service.dart';
 
 class LoginView extends StatefulWidget {
   const LoginView({super.key});
@@ -17,6 +18,8 @@ class _LoginViewState extends State<LoginView> {
   final _passwordController = TextEditingController();
   bool _rememberMe = false;
   bool _obscurePassword = true;
+  bool _isLoggingIn = false;
+  final ApiService _api = ApiService();
 
   @override
   void dispose() {
@@ -26,10 +29,75 @@ class _LoginViewState extends State<LoginView> {
     super.dispose();
   }
 
-  void _handleLogin() {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const HomeView()),
+  Future<void> _handleLogin() async {
+    final email = _emailController.text.trim();
+    final phone = _phoneController.text.trim();
+    final password = _passwordController.text;
+
+    if (email.isEmpty) {
+      _showSnackBar('請輸入電子郵箱');
+      return;
+    }
+    if (!_isValidEmail(email)) {
+      _showSnackBar('請輸入有效的電子郵箱格式');
+      return;
+    }
+    if (password.isEmpty || password.length < 8) {
+      _showSnackBar('密碼格式錯誤未完整');
+      return;
+    }
+    if (phone.isEmpty) {
+      _showSnackBar('請輸入電話號碼');
+      return;
+    }
+    if (!_isValidPhone(phone)) {
+      _showSnackBar('請輸入有效的電話號碼（例：0912-345-678）');
+      return;
+    }
+
+    setState(() => _isLoggingIn = true);
+
+    try {
+      await _api.login(
+        email: email,
+        password: password,
+      );
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const HomeView()),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoggingIn = false);
+        final msg = e.toString().replaceFirst('Exception: ', '');
+        _showSnackBar(msg.isNotEmpty ? msg : '密碼有誤，請再查詢');
+      }
+    }
+  }
+
+  bool _isValidEmail(String value) {
+    return RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
+        .hasMatch(value);
+  }
+
+  bool _isValidPhone(String value) {
+    final digits = value.replaceAll(RegExp(r'[^\d]'), '');
+    if (digits.isEmpty) return false;
+    // 09XXXXXXXX (10 碼)、+886 9XXXXXXXX (12 碼)、或 9XXXXXXXX (9 碼省略 0)
+    if (RegExp(r'^09\d{8}$').hasMatch(digits)) return true;
+    if (RegExp(r'^8869\d{8}$').hasMatch(digits)) return true;
+    if (RegExp(r'^9\d{8}$').hasMatch(digits)) return true;
+    return false;
+  }
+
+  void _showSnackBar(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg, style: const TextStyle(color: Colors.white)),
+        backgroundColor: Colors.red.shade700,
+      ),
     );
   }
 
@@ -246,37 +314,51 @@ class _LoginViewState extends State<LoginView> {
 
               // 登入按鈕
               GestureDetector(
-                onTap: _handleLogin,
+                onTap: _isLoggingIn ? null : _handleLogin,
                 child: Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      begin: Alignment.centerLeft,
-                      end: Alignment.centerRight,
-                      colors: [
-                        Color(0xFF3B82F6), // blue-500
-                        Color(0xFF06B6D4), // cyan-500
-                      ],
-                    ),
+                    gradient: _isLoggingIn
+                        ? null
+                        : const LinearGradient(
+                            begin: Alignment.centerLeft,
+                            end: Alignment.centerRight,
+                            colors: [
+                              Color(0xFF3B82F6),
+                              Color(0xFF06B6D4),
+                            ],
+                          ),
+                    color: _isLoggingIn ? Colors.grey : null,
                     borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF3B82F6).withOpacity(0.4),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
+                    boxShadow: _isLoggingIn
+                        ? null
+                        : [
+                            BoxShadow(
+                              color: const Color(0xFF3B82F6).withOpacity(0.4),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
                   ),
-                  child: const Center(
-                    child: Text(
-                      '登入',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
-                    ),
+                  child: Center(
+                    child: _isLoggingIn
+                        ? const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text(
+                            '登入',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                          ),
                   ),
                 ),
               ),

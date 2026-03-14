@@ -17,10 +17,22 @@ class SaasSeeder extends Seeder
             ['name' => '最高管理員', 'password' => 'password', 'role' => 'super_admin']
         );
 
-        // 2. A店家
+        // 2. 店家（A/B/C/D 供 APP 註冊選擇）
         $store = \App\Models\Store::firstOrCreate(
             ['name' => 'A店家'],
-            ['branch_name' => '旗艦店']
+            ['branch_name' => '總部旗艦店']
+        );
+        \App\Models\Store::firstOrCreate(
+            ['name' => 'B店家'],
+            ['branch_name' => '大安分店']
+        );
+        \App\Models\Store::firstOrCreate(
+            ['name' => 'C店家'],
+            ['branch_name' => '板橋分店']
+        );
+        \App\Models\Store::firstOrCreate(
+            ['name' => 'D店家'],
+            ['branch_name' => '台中分店']
         );
 
         // 2b. 店家管理者 (歸屬 A 店家)

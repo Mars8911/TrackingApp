@@ -27,8 +27,9 @@ class _MemberCenterViewState extends State<MemberCenterView> {
   static const int _initialVisibleCount = 3;
   bool _showAll = false;
 
-  List<Loan> get _loans => widget.summary?.loans ?? _mockLoans;
-  int get _totalCases => widget.summary?.totalCases ?? _mockLoans.length;
+  /// 無 API 資料時顯示空列表（新註冊用戶無貸款）
+  List<Loan> get _loans => widget.summary?.loans ?? <Loan>[];
+  int get _totalCases => widget.summary?.totalCases ?? _loans.length;
   /// 全部借貸的月還款加總（API 未提供時為 0，UI 以設計稿範例值顯示）
   double get _totalMonthlyPayment => _loans.fold<double>(
         0,
@@ -40,49 +41,6 @@ class _MemberCenterViewState extends State<MemberCenterView> {
     symbol: 'NT:',
     decimalDigits: 0,
   );
-
-  static List<Loan> get _mockLoans => [
-        Loan(
-          id: 1,
-          amount: 1234567,
-          remaining: 1234566,
-          interestRate: 0,
-          storeName: 'A店家',
-          caseName: '汽車',
-          monthlyPayment: 92592,
-          repaymentDay: '每月5號',
-        ),
-        Loan(
-          id: 2,
-          amount: 8500000,
-          remaining: 7823456,
-          interestRate: 0,
-          storeName: 'A店家',
-          caseName: '房屋',
-          monthlyPayment: 45678,
-          repaymentDay: '每30天',
-        ),
-        Loan(
-          id: 3,
-          amount: 150000,
-          remaining: 98750,
-          interestRate: 0,
-          storeName: 'A店家',
-          caseName: '機車',
-          monthlyPayment: 8500,
-          repaymentDay: '每月15號',
-        ),
-        Loan(
-          id: 4,
-          amount: 500000,
-          remaining: 450000,
-          interestRate: 0,
-          storeName: 'A店家',
-          caseName: '其他',
-          monthlyPayment: 20345,
-          repaymentDay: '每月20號',
-        ),
-      ];
 
   @override
   Widget build(BuildContext context) {
@@ -224,8 +182,51 @@ class _MemberCenterViewState extends State<MemberCenterView> {
     );
   }
 
+  /// 尚無貸款時顯示的空白狀態
+  Widget _buildEmptyLoanCard() {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(DashboardDesign.radius2xl),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(
+          sigmaX: DashboardDesign.blurXl,
+          sigmaY: DashboardDesign.blurXl,
+        ),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
+          decoration: BoxDecoration(
+            color: DashboardDesign.white5,
+            borderRadius:
+                BorderRadius.circular(DashboardDesign.radius2xl),
+            border: Border.all(
+              color: DashboardDesign.borderWhite10,
+              width: 1,
+            ),
+          ),
+          child: Column(
+            children: [
+              Icon(Icons.account_balance_wallet_outlined,
+                  size: 48, color: DashboardDesign.textBlue300),
+              const SizedBox(height: 12),
+              Text(
+                '尚無貸款案件',
+                style: TextStyle(
+                  color: DashboardDesign.textBlue200,
+                  fontSize: DashboardDesign.fontSizeBase,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   /// 借貸列表卡片：Column + 獨立列容器（非 DataTable）、標題列加深＋上圓角、收合按鈕紅底白字
   Widget _buildLoanTableCard() {
+    if (_loans.isEmpty) {
+      return _buildEmptyLoanCard();
+    }
     final displayLoans = _showAll
         ? _loans
         : _loans.take(_initialVisibleCount).toList();
